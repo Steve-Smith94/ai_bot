@@ -9,4 +9,4 @@ wheels/
 # Virtual environments
 .venv
 #keys
-~/projects/github.com/Steve-Smith94/ai_bot/.env
+.env
