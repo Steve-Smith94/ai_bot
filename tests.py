@@ -1,21 +1,15 @@
 from functions.get_file_content import get_file_content
 from functions.config import MAX_CHARS
+from functions.write_file import write_file 
 
 
-
-result = get_file_content("calculator", "main.py")
-print("Result for current directory:")
+result = write_file("calculator", "lorem.txt", "wait, this isn't lorem ipsum")
 print(result)
 
-result = get_file_content("calculator", "pkg/calculator.py")
-print("Result for current directory:")
+result = write_file("calculator", "pkg/morelorem.txt", "lorem ipsum dolor sit amet")
 print(result)
 
-result = get_file_content("calculator", "/bin/cat")
-print("Result for current directory:")
+result = write_file("calculator", "/tmp/temp.txt", "this should not be allowed")
 print(result)
 
-result = get_file_content("calculator", "pkg/does_not_exist.py")
-print("Result for current directory:")
-print(result)
 
