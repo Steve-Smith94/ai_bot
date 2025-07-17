@@ -15,6 +15,9 @@ You are a helpful AI coding agent.
 When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
 
 - List files and directories
+- Read file contents
+- Execute Python files with optional arguments
+- Write or overwrite files
 
 All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
 """
@@ -33,10 +36,56 @@ schema_get_files_info = types.FunctionDeclaration(
     ),
 ) 
 
+schema_get_file_content = types.FunctionDeclaration(
+    name="get_file_content",
+    description="Lists file contents, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="lists the content of a given file",
+            ),
+        },
+    ),
+) 
+
+schema_run_python_file = types.FunctionDeclaration(
+    name="run_python_file",
+    description="Runs a python file",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="Runs a python file",
+            ),
+        },
+    ),
+) 
+
+schema_write_file = types.FunctionDeclaration(
+    name="write_file",
+    description="writes to a file",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="file path to the written file",
+    ),
+    "content": types.Schema(
+        type=types.Type.STRING,
+        description="content written to file", 
+            ),
+        },
+    ),
+) 
+
 
 available_functions = types.Tool(
     function_declarations=[
-        schema_get_files_info,
+        schema_get_files_info, schema_get_file_content, schema_run_python_file, schema_write_file
     ]
 )
 
