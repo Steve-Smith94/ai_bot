@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from google import genai
 import sys
 from google.genai import types
+from functions.call_function import call_function
 
 
 
@@ -95,6 +96,8 @@ config=types.GenerateContentConfig(
 
 
 def main():
+    verbose = "--verbose" in sys.argv
+
     if len(sys.argv) < 2:
         print("Error, please provide a prompt")
         sys.exit(1)
@@ -109,15 +112,24 @@ def main():
 
     if response.function_calls:
         function_call_part = response.function_calls[0]
-        print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+        function_call_result = call_function(function_call_part, verbose)
+
+        if not function_call_result.parts[0].function_response.response:
+            raise Exception("Function call result missing expected response structure")
+
+        if verbose:
+            print(f"-> {function_call_result.parts[0].function_response.response}")
+
     else:
         print(response.text)
 
-    if "--verbose" in sys.argv:
+    if verbose:
         print(f"User prompt: {prompt}")
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
+
+    
 
 
 
