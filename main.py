@@ -5,8 +5,6 @@ import sys
 from google.genai import types
 from functions.call_function import call_function
 
-
-
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
@@ -23,11 +21,12 @@ When a user asks a question or makes a request, make a function call plan. You c
 All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
 """
 
+# Your schema definitions (same as before)
 schema_get_files_info = types.FunctionDeclaration(
     name="get_files_info",
     description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
     parameters=types.Schema(
-        type=types.Type.OBJECT,
+        type=types.Type.OBJECT, 
         properties={
             "directory": types.Schema(
                 type=types.Type.STRING,
@@ -74,15 +73,14 @@ schema_write_file = types.FunctionDeclaration(
             "file_path": types.Schema(
                 type=types.Type.STRING,
                 description="file path to the written file",
-    ),
-    "content": types.Schema(
-        type=types.Type.STRING,
-        description="content written to file", 
+            ),
+            "content": types.Schema(
+                type=types.Type.STRING,
+                description="content written to file", 
             ),
         },
     ),
 ) 
-
 
 available_functions = types.Tool(
     function_declarations=[
@@ -90,10 +88,9 @@ available_functions = types.Tool(
     ]
 )
 
-config=types.GenerateContentConfig(
+config = types.GenerateContentConfig(
     tools=[available_functions], system_instruction=system_prompt
 )
-
 
 def main():
     verbose = "--verbose" in sys.argv
@@ -104,37 +101,60 @@ def main():
     else:
         prompt = sys.argv[1]
         
-        messages = [
-    types.Content(role="user", parts=[types.Part(text=prompt)]),
-]
-        
-        response = client.models.generate_content(model= "gemini-2.0-flash-001" , contents= messages, config= config)
-
-    if response.function_calls:
-        function_call_part = response.function_calls[0]
-        function_call_result = call_function(function_call_part, verbose)
-
-        if not function_call_result.parts[0].function_response.response:
-            raise Exception("Function call result missing expected response structure")
-
-        if verbose:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
-
-    else:
-        print(response.text)
-
-    if verbose:
-        print(f"User prompt: {prompt}")
-        print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
-
-
+    messages = [types.Content(role="user", parts=[types.Part(text=prompt)])]   
     
+    for iteration in range(20):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.0-flash-001", 
+                contents=messages, 
+                config=config
+            )
 
+            # Add model response to conversation
+            for candidate in response.candidates:
+                messages.append(candidate.content)
 
+            # Check for function calls and execute them
+            function_responses = []
+            for candidate in response.candidates:
+                for part in candidate.content.parts:
+                    if hasattr(part, 'function_call') and part.function_call:
+                        if verbose:
+                            print(f" - Calling function: {part.function_call.name}")
+                        
+                        # Get the result from call_function (it returns a Content object)
+                        result_content = call_function(part.function_call, verbose)
+                        
+                        # Extract the function response data from the first part
+                        if result_content.parts and hasattr(result_content.parts[0], 'function_response'):
+                            function_response_data = result_content.parts[0].function_response.response
+                        else:
+                            # Fallback - create response data from the content
+                            function_response_data = {"result": str(result_content)}
+                        
+                        # Create a proper function response part
+                        function_response = types.Part(
+                            function_response=types.FunctionResponse(
+                                name=part.function_call.name,
+                                response=function_response_data
+                            )
+                        )
+                        function_responses.append(function_response)
 
+            # If we had function calls, add their results as tool messages
+            if function_responses:
+                messages.append(types.Content(role="tool", parts=function_responses))
+            elif response.text:
+                # No function calls and we have final text
+                print("Final response:")
+                print(response.text)
+                break
+
+        except Exception as e:
+            print(f"Error: {e}")
+            break
 
 if __name__ == "__main__":
     main()
-
 
